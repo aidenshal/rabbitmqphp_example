@@ -1,0 +1,4 @@
+testRabbitMQ.ini
+web/db_connection.php
+*.env
+config/private/

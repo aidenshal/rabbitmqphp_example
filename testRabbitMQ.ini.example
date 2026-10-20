@@ -1,0 +1,11 @@
+[IT490AuthServer]
+BROKER_HOST = 127.0.0.1
+BROKER_PORT = 5672
+USER = IT490_auth_app
+PASSWORD = 12345
+VHOST = IT490
+EXCHANGE = IT490_auth_exchange
+QUEUE = IT490_auth_queue
+;EXCHANGE_TYPE = ????
+AUTO_DELETE = true
+

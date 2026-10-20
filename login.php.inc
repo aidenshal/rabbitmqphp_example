@@ -2,38 +2,57 @@
 
 class loginDB
 {
-private $logindb;
+    private $logindb;
 
-public function __construct()
-{
-	$this->logindb = new mysqli("127.0.0.1","root","12345","login");
+    public function __construct()
+    {
+        $this->logindb = new mysqli(
+            "127.0.0.1",
+            "it490_app",
+            "IT490_App_2026!",
+            "login"
+        );
 
-	if ($this->logindb->connect_errno != 0)
-	{
-		echo "Error connecting to database: ".$this->logindb->connect_error.PHP_EOL;
-		exit(1);
-	}
-	echo "correctly connected to database".PHP_EOL;
+        if ($this->logindb->connect_errno !== 0) {
+            throw new RuntimeException(
+                "Database connection failed: " .
+                $this->logindb->connect_error
+            );
+        }
+
+        $this->logindb->set_charset("utf8mb4");
+        echo "correctly connected to database" . PHP_EOL;
+    }
+
+    public function validateLogin($username, $password)
+    {
+        if (!is_string($username) || !is_string($password)) {
+            echo "username or password was missing" . PHP_EOL;
+            return 0;
+        }
+
+        if ($username === "" || $password === "") {
+            echo "username or password was empty" . PHP_EOL;
+            return 0;
+        }
+
+        $statement = $this->logindb->prepare(
+            "SELECT password FROM users WHERE screenname = ? LIMIT 1"
+        );
+
+        $statement->bind_param("s", $username);
+        $statement->execute();
+
+        $response = $statement->get_result();
+        $row = $response->fetch_assoc();
+        $statement->close();
+
+        if ($row && password_verify($password, $row["password"])) {
+            echo "passwords match for $username" . PHP_EOL;
+            return 1;
+        }
+
+        echo "login failed for $username" . PHP_EOL;
+        return 0;
+    }
 }
-
-public function validateLogin($username,$password)
-{
-	$un = $this->logindb->real_escape_string($username);
-	$pw = $this->logindb->real_escape_string($password);
-	$statement = "select * from users where screenname = '$un'";
-	$response = $this->logindb->query($statement);
-
-	while ($row = $response->fetch_assoc())
-	{
-		echo "checking password for $username".PHP_EOL;
-		if ($row["password"] == $pw)
-		{
-			echo "passwords match for $username".PHP_EOL;
-			return 1;// password match
-		}
-		echo "passwords did not match for $username".PHP_EOL;
-	}
-	return 0;//no users matched username
-}
-}
-?>
