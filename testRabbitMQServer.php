@@ -1,58 +1,79 @@
 #!/usr/bin/php
 <?php
-require_once('path.inc');
-require_once('get_host_info.inc');
-require_once('rabbitMQLib.inc');
-require_once('login.php.inc');
 
-function doLogin($username,$password)
+chdir(__DIR__);
+
+require_once __DIR__ . '/path.inc';
+require_once __DIR__ . '/get_host_info.inc';
+require_once __DIR__ . '/rabbitMQLib.inc';
+require_once __DIR__ . '/login.php.inc';
+
+function doLogin($username, $password)
 {
-  $login = new loginDB();
-  return $login->validateLogin($username,$password);
+    $db = new loginDB();
+    return $db->validateLogin($username, $password);
 }
 
-function doRegister($name,$username,$email,$password)
+function doRegister($name, $username, $email, $password)
 {
-  $register = new loginDB();
-  return $register->registerUser($name,$username,$email,$password);
+    $db = new loginDB();
+    return $db->registerUser($name, $username, $email, $password);
 }
-
-//function doValidate($sessionId)
-//{
-//  $login = new loginDB();
-//  return $login->validateSession($sessionId);
-//}
 
 function requestProcessor($request)
 {
-  echo "received request".PHP_EOL;
-  var_dump($request);
-  if(!isset($request['type']))
-  {
-    return "ERROR: unsupported message type";
-  }
-  switch ($request['type'])
-  {
-    case "import_jobs":
-    $db = new loginDB();
-    	return $db->importJobs($request['jobs'] ?? []);
-    case "login":
-      return doLogin($request['username'],$request['password']);
-    case "register":
-      return doRegister($request['name'],$request['username'],$request['email'],$request['password']);
-    case "validate_session":
-    $db = new loginDB();
-    return $db->validateSession($request['token'] ?? '');
-    case "logout":
-    $db = new loginDB();
-    return $db->logoutSession($request['token'] ?? '');
-  }
-  return array("returnCode" => '0', 'message'=>"Server received request and processed");
+    if (!is_array($request)
+        || !is_string($request['type'] ?? null)) {
+        return [
+            'ok' => false,
+            'error' => 'invalid_request'
+        ];
+    }
+
+    echo "Received request type: " . $request['type'] . PHP_EOL;
+
+    switch ($request['type']) {
+        case 'login':
+            return doLogin(
+                $request['username'] ?? '',
+                $request['password'] ?? ''
+            );
+
+        case 'register':
+            return doRegister(
+                $request['name'] ?? '',
+                $request['username'] ?? '',
+                $request['email'] ?? '',
+                $request['password'] ?? ''
+            );
+
+        case 'validate_session':
+            $db = new loginDB();
+            return $db->validateSession($request['token'] ?? '');
+
+        case 'logout':
+            $db = new loginDB();
+            return $db->logoutSession($request['token'] ?? '');
+
+        case 'import_jobs':
+            $db = new loginDB();
+            return $db->importJobs($request['jobs'] ?? []);
+
+        case 'get_jobs':
+            $db = new loginDB();
+            return $db->getJobs($request['token'] ?? '');
+
+        default:
+            return [
+                'ok' => false,
+                'error' => 'unsupported_message_type'
+            ];
+    }
 }
 
-$server = new rabbitMQServer("testRabbitMQ.ini","testServer");
+$server = new rabbitMQServer(
+    __DIR__ . '/testRabbitMQ.ini',
+    'testServer'
+);
 
 $server->process_requests('requestProcessor');
-exit();
-?>
-

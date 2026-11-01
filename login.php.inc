@@ -6,7 +6,12 @@ class loginDB
 
     public function __construct()
     {
-        $this->logindb = new mysqli("127.0.0.1", "it490_app", "12345", "login");
+        $this->logindb = new mysqli(
+            "127.0.0.1",
+            "it490_app",
+            "12345",
+            "login"
+        );
 
         if ($this->logindb->connect_errno != 0) {
             echo "Error connecting to database: "
@@ -124,13 +129,73 @@ class loginDB
         return ['ok' => true];
     }
 
+    public function getJobs($token)
+    {
+        try {
+            $session = $this->validateSession($token);
+
+            if (($session['ok'] ?? false) !== true) {
+                return [
+                    'ok' => false,
+                    'error' => 'unauthorized'
+                ];
+            }
+
+            $result = $this->logindb->query(
+                'SELECT job_id, data, collected_at
+                 FROM applyweek_jobs
+                 ORDER BY collected_at DESC, job_id DESC
+                 LIMIT 50'
+            );
+
+            $jobs = [];
+
+            while ($row = $result->fetch_assoc()) {
+                $data = json_decode(
+                    $row['data'],
+                    true,
+                    512,
+                    JSON_THROW_ON_ERROR
+                );
+
+                $jobs[] = [
+                    'job_id' => $row['job_id'],
+                    'title' => $data['business_title'] ?? 'Untitled',
+                    'agency' => $data['agency'] ?? 'Not listed',
+                    'career_level' => $data['career_level'] ?? 'Not listed',
+                    'salary_from' => $data['salary_range_from'] ?? null,
+                    'salary_to' => $data['salary_range_to'] ?? null,
+                    'salary_frequency' => $data['salary_frequency'] ?? '',
+                    'collected_at' => $row['collected_at']
+                ];
+            }
+
+            return [
+                'ok' => true,
+                'username' => $session['username'],
+                'jobs' => $jobs
+            ];
+
+        } catch (Throwable $error) {
+            error_log('ApplyWeek get_jobs failed: ' . $error->getMessage());
+
+            return [
+                'ok' => false,
+                'error' => 'server_error'
+            ];
+        }
+    }
+
     public function importJobs($jobs)
     {
         if (!is_array($jobs)
             || !array_is_list($jobs)
             || count($jobs) < 1
             || count($jobs) > 100) {
-            return ['ok' => false, 'message' => 'Invalid import batch.'];
+            return [
+                'ok' => false,
+                'message' => 'Invalid import batch.'
+            ];
         }
 
         $inTransaction = false;
@@ -188,6 +253,7 @@ class loginDB
                 'ok' => true,
                 'processed' => count($records)
             ];
+
         } catch (Throwable $error) {
             if ($inTransaction) {
                 try {
