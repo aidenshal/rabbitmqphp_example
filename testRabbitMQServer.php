@@ -33,6 +33,9 @@ function requestProcessor($request)
   }
   switch ($request['type'])
   {
+    case "import_jobs":
+    $db = new loginDB();
+    	return $db->importJobs($request['jobs'] ?? []);
     case "login":
       return doLogin($request['username'],$request['password']);
     case "register":
