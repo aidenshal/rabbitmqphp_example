@@ -76,4 +76,5 @@ $server = new rabbitMQServer(
     'testServer'
 );
 
+echo "testRabbitMQServer BEGIN".PHP_EOL;
 $server->process_requests('requestProcessor');
