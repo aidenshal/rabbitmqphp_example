@@ -17,7 +17,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         require_once(__DIR__ . '/../get_host_info.inc');
         require_once(__DIR__ . '/../rabbitMQLib.inc');
 
-        $client = new rabbitMQClient("testRabbitMQ.ini", "testServer");
+        $client = new rabbitMQClient(
+    __DIR__ . '/../testRabbitMQ.ini',
+    'testServer'
+);
 
         $request = array();
         $request['type'] = "register";
