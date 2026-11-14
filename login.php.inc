@@ -10,9 +10,12 @@ class loginDB
     {
         mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-        // This private file is needed only on the database machine.
         $configPath = __DIR__ . '/config/private/database.ini';
-        $config = @parse_ini_file($configPath, false, INI_SCANNER_RAW);
+        $config = @parse_ini_file(
+            $configPath,
+            false,
+            INI_SCANNER_RAW
+        );
 
         if (!is_array($config)) {
             throw new RuntimeException(
@@ -21,14 +24,14 @@ class loginDB
         }
 
         foreach (['user', 'password', 'database'] as $key) {
-            if (!is_string($config[$key] ?? null) || $config[$key] === '') {
+            if (!is_string($config[$key] ?? null)
+                || $config[$key] === '') {
                 throw new RuntimeException(
                     'The private database configuration is incomplete.'
                 );
             }
         }
 
-        // MySQL stays local to the backend listener.
         $this->logindb = new mysqli(
             '127.0.0.1',
             $config['user'],
@@ -41,10 +44,10 @@ class loginDB
 
     public function validateLogin($username, $password): array
     {
-        if (!is_string($username) ||
-            !is_string($password) ||
-            trim($username) === '' ||
-            $password === '') {
+        if (!is_string($username)
+            || !is_string($password)
+            || trim($username) === ''
+            || $password === '') {
             return [
                 'ok' => false,
                 'message' => 'Invalid username or password.'
@@ -63,18 +66,18 @@ class loginDB
 
             $stmt->bind_param('s', $username);
             $stmt->execute();
+
             $user = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
-            if (!$user ||
-                !password_verify($password, $user['password'])) {
+            if (!$user
+                || !password_verify($password, $user['password'])) {
                 return [
                     'ok' => false,
                     'message' => 'Invalid username or password.'
                 ];
             }
 
-            // Send the raw token to the browser; store only its hash.
             $token = bin2hex(random_bytes(32));
             $tokenHash = hash('sha256', $token);
             $userId = (int) $user['id'];
@@ -109,10 +112,10 @@ class loginDB
         $email,
         $password
     ): array {
-        if (!is_string($name) ||
-            !is_string($username) ||
-            !is_string($email) ||
-            !is_string($password)) {
+        if (!is_string($name)
+            || !is_string($username)
+            || !is_string($email)
+            || !is_string($password)) {
             return [
                 'ok' => false,
                 'message' => 'Invalid registration details.'
@@ -123,27 +126,30 @@ class loginDB
         $username = strtolower(trim($username));
         $email = strtolower(trim($email));
 
-        if (!preg_match('/\A[a-z0-9_]{3,32}\z/', $username)) {
+        // No username character pattern or minimum length.
+        if ($username === '') {
             return [
                 'ok' => false,
-                'message' => 'Use 3–32 letters, numbers, or underscores.'
+                'message' => 'Enter a username.'
             ];
         }
 
-        if (strlen($email) > 254 ||
-            !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        // Basic email check: something before and after @.
+        if (strlen($email) > 254
+            || !preg_match('/^.+@.+$/', $email)) {
             return [
                 'ok' => false,
-                'message' => 'Enter a valid email address.'
+                'message' => 'Enter an email like name@something.'
             ];
         }
 
-        if (strlen($password) < 12 ||
-            strlen($password) > 72 ||
-            str_contains($password, "\0")) {
+        // Five-character minimum; retain the hashing limits.
+        if (!preg_match('/\A.{5,}\z/us', $password)
+            || strlen($password) > 72
+            || str_contains($password, "\0")) {
             return [
                 'ok' => false,
-                'message' => 'Use a password between 12 and 72 bytes.'
+                'message' => 'Use at least 5 characters, up to 72 bytes.'
             ];
         }
 
@@ -181,9 +187,8 @@ class loginDB
                 'message' => 'Account created. You can now log in.'
             ];
         } catch (Throwable $error) {
-            // The database's unique constraints prevent duplicates.
-            if ($error instanceof mysqli_sql_exception &&
-                (int) $error->getCode() === 1062) {
+            if ($error instanceof mysqli_sql_exception
+                && (int) $error->getCode() === 1062) {
                 return [
                     'ok' => false,
                     'message' => 'That username or email is already in use.'
@@ -196,8 +201,8 @@ class loginDB
 
     public function validateSession($token): array
     {
-        if (!is_string($token) ||
-            !preg_match('/\A[a-f0-9]{64}\z/', $token)) {
+        if (!is_string($token)
+            || !preg_match('/\A[a-f0-9]{64}\z/', $token)) {
             return [
                 'ok' => false,
                 'error' => 'unauthorized'
@@ -219,6 +224,7 @@ class loginDB
 
             $stmt->bind_param('s', $tokenHash);
             $stmt->execute();
+
             $session = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
@@ -253,9 +259,8 @@ class loginDB
 
     public function logoutSession($token): array
     {
-        // Repeating logout is safe, including for a missing token.
-        if (!is_string($token) ||
-            !preg_match('/\A[a-f0-9]{64}\z/', $token)) {
+        if (!is_string($token)
+            || !preg_match('/\A[a-f0-9]{64}\z/', $token)) {
             return ['ok' => true];
         }
 
@@ -306,7 +311,9 @@ class loginDB
                 );
 
                 if (!is_array($data)) {
-                    throw new RuntimeException('Invalid stored job data.');
+                    throw new RuntimeException(
+                        'Invalid stored job data.'
+                    );
                 }
 
                 $jobs[] = [
@@ -335,10 +342,10 @@ class loginDB
 
     public function importJobs($jobs): array
     {
-        if (!is_array($jobs) ||
-            !array_is_list($jobs) ||
-            count($jobs) < 1 ||
-            count($jobs) > 100) {
+        if (!is_array($jobs)
+            || !array_is_list($jobs)
+            || count($jobs) < 1
+            || count($jobs) > 100) {
             return [
                 'ok' => false,
                 'error' => 'invalid_request',
@@ -362,15 +369,18 @@ class loginDB
 
                 $jobId = $job['job_id'] ?? null;
 
-                if ((!is_string($jobId) && !is_int($jobId)) ||
-                    !preg_match('/\A[0-9]{1,32}\z/', (string) $jobId) ||
-                    ($job['posting_type'] ?? '') !== 'External' ||
-                    !in_array(
+                if ((!is_string($jobId) && !is_int($jobId))
+                    || !preg_match(
+                        '/\A[0-9]{1,32}\z/',
+                        (string) $jobId
+                    )
+                    || ($job['posting_type'] ?? '') !== 'External'
+                    || !in_array(
                         $job['career_level'] ?? '',
                         ['Student', 'Entry-Level'],
                         true
-                    ) ||
-                    !is_string($job['business_title'] ?? null)) {
+                    )
+                    || !is_string($job['business_title'] ?? null)) {
                     return [
                         'ok' => false,
                         'error' => 'invalid_request',
@@ -397,6 +407,7 @@ class loginDB
 
             foreach ($records as $jobId => $json) {
                 $id = (string) $jobId;
+
                 $stmt->bind_param('sss', $id, $json, $json);
                 $stmt->execute();
             }
@@ -414,7 +425,9 @@ class loginDB
                 try {
                     $this->logindb->rollback();
                 } catch (Throwable $rollbackError) {
-                    error_log('ApplyWeek job import rollback failed.');
+                    error_log(
+                        'ApplyWeek job import rollback failed.'
+                    );
                 }
             }
 
@@ -426,10 +439,11 @@ class loginDB
         string $operation,
         Throwable $error
     ): array {
-        // Record the failure without logging passwords or raw tokens.
         error_log(
-            'ApplyWeek ' . $operation . ' failed: ' .
-            get_class($error) . ' code ' . $error->getCode()
+            'ApplyWeek ' . $operation . ' failed: '
+            . get_class($error)
+            . ' code '
+            . $error->getCode()
         );
 
         return [
