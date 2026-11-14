@@ -1,5 +1,7 @@
 <?php
-ini_set('display_errors', 1);
+
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
 $responseMessage = "";
@@ -13,14 +15,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $type = $_POST['type'] ?? '';
 
     if ($type === "register") {
+        chdir(dirname(__DIR__));
+
         require_once(__DIR__ . '/../path.inc');
         require_once(__DIR__ . '/../get_host_info.inc');
         require_once(__DIR__ . '/../rabbitMQLib.inc');
 
         $client = new rabbitMQClient(
-    __DIR__ . '/../testRabbitMQ.ini',
-    'testServer'
-);
+            __DIR__ . '/../testRabbitMQ.ini',
+            'testServer'
+        );
 
         $request = array();
         $request['type'] = "register";
@@ -32,17 +36,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $response = $client->send_request($request);
 
-        if ($response == 1) {
+        if (is_array($response)
+            && ($response['ok'] ?? false) === true) {
             header("Location: login.php");
             exit();
         } else {
-            $responseMessage = "Registration Failed. Username may already exist.";
+            $responseMessage =
+                is_array($response)
+                && is_string($response['message'] ?? null)
+                    ? $response['message']
+                    : 'Registration failed. Please try again.';
+
             $isSuccess = false;
         }
     }
 }
-?>
 
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -51,9 +61,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 <body>
     <h2>Register</h2>
-<?php if ($responseMessage !== ''): ?>
-    <p><?= htmlspecialchars($responseMessage, ENT_QUOTES, 'UTF-8') ?></p>
-<?php endif; ?>
+
+    <?php if ($responseMessage !== ''): ?>
+        <p>
+            <?= htmlspecialchars($responseMessage, ENT_QUOTES, 'UTF-8') ?>
+        </p>
+    <?php endif; ?>
+
     <form action="register.php" method="POST">
         <input type="hidden" name="type" value="register">
 
