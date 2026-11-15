@@ -1,0 +1,18 @@
+[Unit]
+Description=ApplyWeek backend RabbitMQ listener
+Wants=network-online.target
+After=network-online.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=simple
+User=aiden_shal
+WorkingDirectory=/home/aiden_shal/git/applyweek-integration
+ExecStart=/usr/bin/php /home/aiden_shal/git/applyweek-integration/testRabbitMQServer.php
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
