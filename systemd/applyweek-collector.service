@@ -1,0 +1,11 @@
+[Unit]
+Description=Import NYC job postings into ApplyWeek
+Wants=network-online.target
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=aiden
+WorkingDirectory=/home/aiden/git/rabbitmqphp_example
+ExecStart=/usr/bin/php /home/aiden/git/rabbitmqphp_example/datasource/collect_jobs.php
+TimeoutStartSec=2min
