@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the ApplyWeek collector daily
+
+[Timer]
+OnCalendar=*-*-* 12:00:00 America/New_York
+Persistent=true
+
+[Install]
+WantedBy=timers.target
